@@ -19,18 +19,25 @@ class Axis(IntEnum):
     OUTPUT_Y = 4
     INPUT_Z = 5
     OUTPUT_Z = 6
-
+"""
+TODO:
+    0. Recieve data properly
+    1. Write a function that jogs motor
+    2. Ensure that goto_abs WAITS until desired position is achieved
+    3. Maximize throughput function
+"""
 class Seiki:
-    def __init__(self, com_port):
+    def __init__(self, com_port='5'):
         self.com_port = com_port
-        self.baud_rate = 9600
-    def goto_abs(axis, )
-
-
-com_port = '5'  # subject to change...
-baud_rate = 9600
-ser = serial.Serial(com_port, baud_rate, timeout=0.5)
-writedata = 'AXI' + str(i) + ":GOABS" + " 0"
-w_data = (writedata + '\r').encode('utf-8')
-r_size = 256
-ser.write(w_data)
+        self.baud_rate = 9600  # common
+        self.ser = serial.Serial(self.com_port, self.baud_rate, timeout=0.5)
+    def speed(self, axis, selection):
+        if selection > 9:
+            print("ERROR: Speed table selection must be an integer between 0 and 9.")
+        writedata = 'SELSP ' + str(selection)
+        w_data = (writedata + '\r').encode('utf-8')
+        self.ser.write(w_data)
+    def goto_abs(axis, pos):
+        writedata = 'AXI' + str(axis) + ":GOABS " + str(int(pos))
+        w_data = (writedata + '\r').encode('utf-8')
+        self.ser.write(w_data)
