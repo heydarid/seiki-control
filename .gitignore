@@ -1,5 +1,5 @@
 *.pdf
 *.exe
-/seikicontrol.egg-info/
-/tests/
-/dist/
+seikicontrol.egg-info/
+tests/
+dist/
