@@ -1,9 +1,0 @@
-README.md
-setup.py
-seikicontrol/__init__.py
-seikicontrol/control.py
-seikicontrol.egg-info/PKG-INFO
-seikicontrol.egg-info/SOURCES.txt
-seikicontrol.egg-info/dependency_links.txt
-seikicontrol.egg-info/requires.txt
-seikicontrol.egg-info/top_level.txt
