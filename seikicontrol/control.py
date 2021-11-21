@@ -52,15 +52,15 @@ class Seiki:
 
         return read_data
 
-    def speed(self, axis, selection):
+    def set_speed(self, axis, selection):
         if selection > 9:
             print("ERROR: Speed table selection must be an integer between 0 and 9.")
-        writedata = 'SELSP ' + str(selection)
+        writedata = 'AXI' + str(axis) + ':SELSP ' + str(selection)
         w_data = (writedata + '\r').encode('utf-8')
         self.serial_write_read(w_data)
 
     def goto_abs(self, axis, pos):
-        writedata = 'AXI' + str(axis.real) + ":GOABS " + str(int(pos))
+        writedata = 'AXI' + str(axis) + ":GOABS " + str(int(pos))
         w_data = (writedata + '\r').encode('utf-8')
         self.serial_write_read(w_data)
 
@@ -75,13 +75,13 @@ class Seiki:
         self.serial_write_read(w_data)
 
     def jog(self, axis, data, dir='CW'):
-        writedata = 'AXI' + str(axis.real) + ":PULS " + str(int(data))
+        writedata = 'AXI' + str(axis) + ":PULS " + str(int(data))
         writedata += ':GO ' + str(dir) + ':DW'
         w_data = (writedata + '\r').encode('utf-8')
         self.serial_write_read(w_data)
 
     def set_units(self, axis, unit):
-        writedata = 'AXI' + str(axis.real) + ':UNIT ' + str(unit.real)
+        writedata = 'AXI' + str(axis) + ':UNIT ' + str(unit)
         w_data = (writedata + '\r').encode('utf-8')
         self.serial_write_read(w_data)
 
@@ -93,39 +93,39 @@ class Seiki:
         self.serial_write_read(w_data)
 
     def _get_position(self, axis):
-        writedata = 'AXI' + str(axis.real) + ':POS?'
+        writedata = 'AXI' + str(axis) + ':POS?'
         w_data = (writedata + '\r').encode('utf-8')
         self.serial_write_read(w_data)
 
     def _get_speed(self, axis):
-        writedata = 'AXI' + str(axis.real) + ':SELSP?'
+        writedata = 'AXI' + str(axis) + ':SELSP?'
         w_data = (writedata + '\r').encode('utf-8')
         self.serial_write_read(w_data)
 
     def _get_units(self, axis):
-        writedata = 'AXI' + str(axis.real) + ':UNIT?'
+        writedata = 'AXI' + str(axis) + ':UNIT?'
         w_data = (writedata + '\r').encode('utf-8')
         self.serial_write_read(w_data)
 
     def _get_driver_division(self, axis):
-        writedata = 'AXI' + str(axis.real) + ':DRDIV?'
+        writedata = 'AXI' + str(axis) + ':DRDIV?'
         w_data = (writedata + '\r').encode('utf-8')
         self.serial_write_read(w_data)
     
     def _get_resolution(self, axis):
         # This is the travel distance per pulse, a function
         # of the driver division setting.
-        writedata = 'AXI' + str(axis.real) + ':RESOLUT?'
+        writedata = 'AXI' + str(axis) + ':RESOLUT?'
         w_data = (writedata + '\r').encode('utf-8')
         self.serial_write_read(w_data)
     
     def _get_pulse_setting(self, axis):
-        writedata = 'AXI' + str(axis.real) + ':PULS?'
+        writedata = 'AXI' + str(axis) + ':PULS?'
         w_data = (writedata + '\r').encode('utf-8')
         self.serial_write_read(w_data)
     
     def _verify_home(self, axis):  # (0), 1: (un)detected
-        writedata = 'AXI' + str(axis.real) + ':HOME?'
+        writedata = 'AXI' + str(axis) + ':HOME?'
         w_data = (writedata + '\r').encode('utf-8')
         self.serial_write_read(w_data)
     
