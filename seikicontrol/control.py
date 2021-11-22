@@ -45,11 +45,9 @@ class Seiki:
     # Action
     def serial_write_read(self, write_data):
         self.ser.write(write_data)
-        print('Tx: ' + write_data.strip().decode("utf-8"))
-
+        # print('Tx: ' + write_data.strip().decode("utf-8"))
         read_data = self.ser.read_until(size=256)
-        print('Rx: ' + read_data.strip().decode("utf-8"))
-
+        # print('Rx: ' + read_data.strip().decode("utf-8"))
         return read_data
 
     def set_speed(self, axis, selection):
@@ -90,42 +88,46 @@ class Seiki:
     def identify(self):
         writedata = '*IDN?'
         w_data = (writedata + '\r').encode('utf-8')
-        self.serial_write_read(w_data)
+        return self.serial_write_read(w_data)
 
     def _get_position(self, axis):
         writedata = 'AXI' + str(axis) + ':POS?'
         w_data = (writedata + '\r').encode('utf-8')
-        self.serial_write_read(w_data)
+        return self.serial_write_read(w_data)
 
     def _get_speed(self, axis):
         writedata = 'AXI' + str(axis) + ':SELSP?'
         w_data = (writedata + '\r').encode('utf-8')
-        self.serial_write_read(w_data)
+        return self.serial_write_read(w_data)
 
     def _get_units(self, axis):
         writedata = 'AXI' + str(axis) + ':UNIT?'
         w_data = (writedata + '\r').encode('utf-8')
-        self.serial_write_read(w_data)
+        return self.serial_write_read(w_data)
 
     def _get_driver_division(self, axis):
         writedata = 'AXI' + str(axis) + ':DRDIV?'
         w_data = (writedata + '\r').encode('utf-8')
-        self.serial_write_read(w_data)
+        return self.serial_write_read(w_data)
     
     def _get_resolution(self, axis):
         # This is the travel distance per pulse, a function
         # of the driver division setting.
         writedata = 'AXI' + str(axis) + ':RESOLUT?'
         w_data = (writedata + '\r').encode('utf-8')
-        self.serial_write_read(w_data)
+        return self.serial_write_read(w_data)
     
     def _get_pulse_setting(self, axis):
         writedata = 'AXI' + str(axis) + ':PULS?'
         w_data = (writedata + '\r').encode('utf-8')
-        self.serial_write_read(w_data)
+        return self.serial_write_read(w_data)
     
     def _verify_home(self, axis):  # (0), 1: (un)detected
         writedata = 'AXI' + str(axis) + ':HOME?'
         w_data = (writedata + '\r').encode('utf-8')
-        self.serial_write_read(w_data)
+        return self.serial_write_read(w_data)
     
+    def _verify_all_moving(self):
+        writedata = 'MOTIONAll?'
+        w_data = (writedata + '\r').encode('utf-8')
+        return self.serial_write_read(w_data)
