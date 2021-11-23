@@ -8,11 +8,11 @@ Authors         : D. Heydari
 
 NTT-Mabuchi Group
 """
-from math import exp
 from tkinter import *
 from control import Seiki
 from seikicontrol.control import Axis
 from tkinter import ttk
+from math import sin, cos, pi
 
 # TODO:
 # 1. Units
@@ -48,7 +48,7 @@ if __name__ == '__main__':
     speed_set_button.pack(side=RIGHT)
     def speed_set_function(action):
         Stage.set_speed(axisChoice.get(), speedSet.get())
-        update_table(axisChoice.get(), action="SPEED")
+        update_table(axisChoice.get())
     speed_set_button.bind("<Button-1>", speed_set_function)
 
     # control frame
@@ -81,16 +81,15 @@ if __name__ == '__main__':
     ## Button functions
     def jog_function(action):
         Stage.jog(axisChoice.get(), jog_amount.get(), direction.get())
-        update_table(axisChoice.get(), action="MOVE")
+        update_table(axisChoice.get(), True)
     jog_button.bind("<Button-1>", jog_function)
     def go_to_position_function(action):
         Stage.goto_abs(axisChoice.get(), position_desired.get())
-        update_table(axisChoice.get(), action="MOVE")
+        update_table(axisChoice.get(), True)
     pos_button.bind("<Button-1>", go_to_position_function)
 
     # emergency stop  (WIP)
     xOct, yOct = 25, 25
-    from math import sin, cos, pi
     points = []
     for k in range(1,9):
         x0 = xOct * ( cos(2*k*pi / 8 + pi / 8) + 1 ) 
@@ -105,10 +104,9 @@ if __name__ == '__main__':
     def custom_stop(action):
         if int(Stage._verify_all_moving().strip().decode("utf-8")) != 0:
             Stage.slow_stop()
-        stop.itemconfig(Stop, fill='yellow')
-        stop.itemconfig(Stop, fill='purple')
+        stop.after(200, lambda: stop.itemconfig(Stop, fill="yellow"))
+        stop.after(400, lambda: stop.itemconfig(Stop, fill="red"))
     stop.bind("<ButtonPress-1>", custom_stop)
-
 
     # Status table
     status_frame = LabelFrame(root, text=u'Stage Status', font='Helvetica 13', bg='light yellow')
@@ -132,11 +130,11 @@ if __name__ == '__main__':
     cells[(0,3)].configure(text='Abs Position', font='Helvetica 10')
     cells[(0,4)].configure(text='Speed Set', font='Helvetica 10')
     ## table data
-    def update_table(axis, action):
+    def update_table(axis, all=False):
         while int(Stage._verify_all_moving().strip().decode("utf-8")) != 0:
             continue
         cells[(axis, 3)].configure(background='white')
-        read_drvdiv = str(Stage._get_driver_division(axis).strip().decode("utf-8"))
+        read_drvdiv = Stage._get_driver_division(axis)
         cells[(axis, 1)].configure(text=read_drvdiv, font='Helvetica 10', background='white')
 
         read_resolution = str(Stage._get_resolution(axis).strip().decode("utf-8"))
@@ -146,16 +144,25 @@ if __name__ == '__main__':
         cells[(axis, i)].configure(text=read_speed, font='Helvetica 10', background='white')
         root.after(10, lambda: cells[(axis, i)].configure(background='spring green'))
         root.after(2000, lambda: cells[(axis, i)].configure(background='white'))
-
-        if action == 'MOVE':
+        if all:
             i = 3
             read_position = str(Stage._get_position(axis).strip().decode("utf-8"))
             cells[(axis, 3)].configure(text=read_position, font='Helvetica 10', background='white')
             root.after(10, lambda: cells[(axis, i)].configure(background='spring green'))
             root.after(2000, lambda: cells[(axis, i)].configure(background='white'))
 
+    update_button = Button(status_frame, text=u'Update', font='Helvetica 12')
+    update_button.pack(side=LEFT, padx=10)
+    def full_table_refresh(action):
+        update_button.configure(relief=SUNKEN, text='WAIT', bg='red', fg='white')
+        root.update()
+        for axis in Axis:
+            update_table(axis.value, all=True)
+        update_button.configure(relief=RAISED, text='Update', background='SystemButtonFace', fg='black')
+    update_button.bind("<ButtonPress-1>", full_table_refresh)
+
     # copyright label
-    copyright = Button(root, text=u'© 2021 NTT-Mabuchi Research Co. LTD.', relief=SUNKEN, font='Helvetica 8')
+    copyright = Button(root, text=u'© 2021 Mabuchi Research Co. LTD.', relief=SUNKEN, font='Helvetica 8')
     copyright.pack(side=BOTTOM, fill=X)
 
 

@@ -108,7 +108,12 @@ class Seiki:
     def _get_driver_division(self, axis):
         writedata = 'AXI' + str(axis) + ':DRDIV?'
         w_data = (writedata + '\r').encode('utf-8')
-        return self.serial_write_read(w_data)
+        idx = int(self.serial_write_read(w_data).strip().decode("utf-8"))
+        selection = ['1:1', '1:2', '1:2.5', '1:4', 
+                     '1:5', '1:8', '1:10', '1:20'
+                     '1:25', '1:40', '1:50', '1:80'
+                     '1:100', '1:125', '1:200', '1:250']
+        return selection[idx]
     
     def _get_resolution(self, axis):
         # This is the travel distance per pulse, a function
