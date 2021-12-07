@@ -8,11 +8,14 @@ Authors         : D. Heydari and M. Catuneanu
 
 NTT-Mabuchi Group
 """
+__all__ = ["Axis", "Units", "Attribute", "Seiki"]
 
-from os import device_encoding
+from os import device_encoding, write
 import serial
 from enum import Enum
 from enum import IntEnum
+from textwrap import wrap
+from time import sleep
 
 """
 Conventions:
@@ -21,13 +24,15 @@ Conventions:
     Y: out of plane of table
 """
 
-class Axis(IntEnum):
-    INPUT_Z = 1
-    OUTPUT_Z = 2
-    INPUT_Y = 3
-    OUTPUT_Y = 4
-    INPUT_X = 5
-    OUTPUT_X = 6
+from aenum import AutoNumberEnum
+class Axis(AutoNumberEnum):
+    _init_ = 'value text'
+    INPUT_Z =  1, 'AXI1'
+    OUTPUT_Z = 2, 'AXI2'
+    INPUT_Y =  3, 'AXI3'
+    OUTPUT_Y = 4, 'AXI4'
+    INPUT_X =  5, 'AXI5'
+    OUTPUT_X = 6, 'AXI6'
 
 class Units(IntEnum):
     PULSE = 0
@@ -36,103 +41,78 @@ class Units(IntEnum):
     DEG = 3
     MRAD = 4
 
-class Seiki:
+class Command(Enum):
+    IDN = '*IDN'
+    SPD = 'SELSP'
+    POS = 'POS'
+    UNT = 'UNIT'
+    GOA = 'GOABS'
+    DRD = 'DRDIV'
+    RES = 'RESOLUT'
+    JOG = 'PULS'
+    STOP = 'STOP 0'
+    ESTOP = 'STOP 1'
+    HOME = 'HOME'
+    MOVING = 'MOTIONAll'
+
+class Controller:
+    MAXCHAR = 100
     def __init__(self, com_port=5):
         self.com_port = 'COM' + str(com_port)
-        self.baud_rate = 9600  # common
+        self.baud_rate = 38400
         self.ser = serial.Serial(self.com_port, self.baud_rate, timeout=0.5)
 
-    # Action
-    def serial_write_read(self, write_data):
+    def _serial_write_read(self, write_data):
         self.ser.write(write_data)
-        # print('Tx: ' + write_data.strip().decode("utf-8"))
-        read_data = self.ser.read_until(size=256)
-        # print('Rx: ' + read_data.strip().decode("utf-8"))
-        return read_data
+        return self.ser.read_until()
 
-    def set_speed(self, axis, selection):
-        if selection > 9:
-            print("ERROR: Speed table selection must be an integer between 0 and 9.")
-        writedata = 'AXI' + str(axis) + ':SELSP ' + str(selection)
-        w_data = (writedata + '\r').encode('utf-8')
-        self.serial_write_read(w_data)
+    def _clean(self, output):
+        return output.decode('utf-8').split()
 
-    def goto_abs(self, axis, pos):
-        writedata = 'AXI' + str(axis) + ":GOABS " + str(int(pos))
-        w_data = (writedata + '\r').encode('utf-8')
-        self.serial_write_read(w_data)
+    def query(self, axes, attributes):
+        query = [(i, j) for i in axes for j in attributes]
+        write = ''.join([m[0].text + ':' + str(m[1].value) + '?' + '\r' for m in query])
+        if len(write) > Controller.MAXCHAR: return query, self._multi_write(write)
+        return query, self._clean(self._serial_write_read(write.encode('utf-8')))
 
-    def emergency_stop(self):
-        writedata = 'STOP 0'
-        w_data = (writedata + '\r').encode('utf-8')
-        self.serial_write_read(w_data)
+    def _multi_write(self, write):
+        multiwrite = wrap(write, Controller.MAXCHAR, replace_whitespace=False)
+        multiwrite = [m + '\r' for m in multiwrite]
+        result = []
+        for m in multiwrite:
+            result.append(self._serial_write_read(( m.split('\n')[0]).encode('utf-8') ))
+            sleep(0.2)
+        return [item for sublist in [self._clean(r) for r in result] for item in sublist]
 
-    def slow_stop(self):
-        writedata = 'STOP 1'
-        w_data = (writedata + '\r').encode('utf-8')
-        self.serial_write_read(w_data)
+    def set(self, axis, attribute, value):  # one axis and attribute at a time
+        write = axis.text + ':' + str(attribute.value) + ' ' + str(value) + '\r'
+        print('Tx: ', write)
+        return self._serial_write_read(write.encode('utf-8'))
 
     def jog(self, axis, data, dir='CW'):
-        writedata = 'AXI' + str(axis) + ":PULS " + str(int(data))
-        writedata += ':GO ' + str(dir) + ':DW'
-        w_data = (writedata + '\r').encode('utf-8')
-        self.serial_write_read(w_data)
+        writedata = (axis.text + ":PULS " + str(int(data)) + \
+            ':GO ' + str(dir) + ':DW' + '\r').encode('utf-8')
+        self._serial_write_read(writedata)
 
-    def set_units(self, axis, unit):
-        writedata = 'AXI' + str(axis) + ':UNIT ' + str(unit)
-        w_data = (writedata + '\r').encode('utf-8')
-        self.serial_write_read(w_data)
+    def emergency_stop(self):
+        writedata = ('STOP 0' + '\r').encode('utf-8')
+        self._serial_write_read(writedata)
+
+    def slow_stop(self):
+        writedata = ('STOP 1' + '\r').encode('utf-8')
+        self._serial_write_read(writedata)
 
     # Parameter query
-    @property
     def identify(self):
-        writedata = '*IDN?'
-        w_data = (writedata + '\r').encode('utf-8')
-        return self.serial_write_read(w_data)
+        writedata = ('*IDN?' + '\r').encode('utf-8')
+        return self._serial_write_read(writedata)
 
-    def _get_position(self, axis):
-        writedata = 'AXI' + str(axis) + ':POS?'
-        w_data = (writedata + '\r').encode('utf-8')
-        return self.serial_write_read(w_data)
-
-    def _get_speed(self, axis):
-        writedata = 'AXI' + str(axis) + ':SELSP?'
-        w_data = (writedata + '\r').encode('utf-8')
-        return self.serial_write_read(w_data)
-
-    def _get_units(self, axis):
-        writedata = 'AXI' + str(axis) + ':UNIT?'
-        w_data = (writedata + '\r').encode('utf-8')
-        return self.serial_write_read(w_data)
-
-    def _get_driver_division(self, axis):
-        writedata = 'AXI' + str(axis) + ':DRDIV?'
-        w_data = (writedata + '\r').encode('utf-8')
-        idx = int(self.serial_write_read(w_data).strip().decode("utf-8"))
-        selection = ['1:1', '1:2', '1:2.5', '1:4', 
-                     '1:5', '1:8', '1:10', '1:20'
-                     '1:25', '1:40', '1:50', '1:80'
-                     '1:100', '1:125', '1:200', '1:250']
-        return selection[idx]
-    
-    def _get_resolution(self, axis):
-        # This is the travel distance per pulse, a function
-        # of the driver division setting.
-        writedata = 'AXI' + str(axis) + ':RESOLUT?'
-        w_data = (writedata + '\r').encode('utf-8')
-        return self.serial_write_read(w_data)
-    
-    def _get_pulse_setting(self, axis):
-        writedata = 'AXI' + str(axis) + ':PULS?'
-        w_data = (writedata + '\r').encode('utf-8')
-        return self.serial_write_read(w_data)
-    
     def _verify_home(self, axis):  # (0), 1: (un)detected
-        writedata = 'AXI' + str(axis) + ':HOME?'
+        writedata = axis.text + ':HOME?'
         w_data = (writedata + '\r').encode('utf-8')
-        return self.serial_write_read(w_data)
+        return self._serial_write_read(w_data)
     
     def _verify_all_moving(self):
         writedata = 'MOTIONAll?'
         w_data = (writedata + '\r').encode('utf-8')
-        return self.serial_write_read(w_data)
+        return self._serial_write_read(w_data)

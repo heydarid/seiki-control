@@ -9,35 +9,32 @@ Authors         : D. Heydari
 NTT-Mabuchi Group
 """
 from tkinter import *
-from control import Seiki
-from seikicontrol.control import Axis
-from tkinter import ttk
+from control import Command, Axis, Controller
 from math import sin, cos, pi
+from time import sleep
 
 # TODO:
 # 1. Units
-# 2. Make sure updating of table actually happend AFTER stage stopped moving
-# 3. emergency stop button
+# 2. Improve program speed
 
 # main
 if __name__ == '__main__':
     root = Tk()
     root.title(u'SURUGA-SEIKI STAGE CONTROL PROGRAM')
     root.geometry('500x500')
-    Stage = Seiki()
+    Stage = Controller()
 
     # Axis selection
     axis_frame = LabelFrame(root, text="Axis",  font='Helvetica 13', bg='lemon chiffon')
     axis_frame.pack(fill="both")
-    axisChoice = IntVar()
+    axisChoice = StringVar()
     for axis in Axis:
-        btn = Radiobutton(axis_frame, text=axis.name, activebackground="red", variable=axisChoice, value=axis.value,
+        btn = Radiobutton(axis_frame, text=axis.name.lower(), activebackground="red", variable=axisChoice, value=axis.name,
                             indicatoron='False', borderwidth=3, font='Helvetica 10')
-
         btn.pack(side=LEFT, padx=4, pady=4)
 
     # Speed selection
-    speed_frame = LabelFrame(root, text="Speed",  font='Helvetica 13', bg='azure')
+    speed_frame = LabelFrame(root, text="Speed", font='Helvetica 13', bg='azure')
     speed_frame.pack(fill='both')
     speedSet = IntVar()
     for speed in range(10):
@@ -47,12 +44,12 @@ if __name__ == '__main__':
     speed_set_button = Button(speed_frame, text='SET')
     speed_set_button.pack(side=RIGHT)
     def speed_set_function(action):
-        Stage.set_speed(axisChoice.get(), speedSet.get())
-        update_table(axisChoice.get())
+        Stage.set(Axis[axisChoice.get()], Command.SPD, speedSet.get())
+        update_table(Axis[axisChoice.get()], Command.SPD)
     speed_set_button.bind("<Button-1>", speed_set_function)
 
     # control frame
-    control_frame = LabelFrame(root, text="Motion",  font='Helvetica 13', bg='seashell2')
+    control_frame = LabelFrame(root, text="Motion", font='Helvetica 13', bg='seashell2')
     control_frame.pack(fill=BOTH)
     ## Absolute position
     abs_pos_frame = Frame(control_frame, bg='seashell2', borderwidth=6, relief=RIDGE)
@@ -80,12 +77,12 @@ if __name__ == '__main__':
     btnCCW.pack(side=TOP, padx=4, pady=4)
     ## Button functions
     def jog_function(action):
-        Stage.jog(axisChoice.get(), jog_amount.get(), direction.get())
-        update_table(axisChoice.get(), True)
+        Stage.jog(Axis[axisChoice.get()], jog_amount.get(), direction.get())
+        update_table(Axis[axisChoice.get()], Command.POS)
     jog_button.bind("<Button-1>", jog_function)
     def go_to_position_function(action):
-        Stage.goto_abs(axisChoice.get(), position_desired.get())
-        update_table(axisChoice.get(), True)
+        Stage.set(Axis[axisChoice.get()], Command.GOA, position_desired.get())
+        update_table(Axis[axisChoice.get()], Command.POS)
     pos_button.bind("<Button-1>", go_to_position_function)
 
     # emergency stop  (WIP)
@@ -123,48 +120,49 @@ if __name__ == '__main__':
     ## labels
     cells[(0,0)].configure(background='light gray')
     cells[(0,0)].configure(text='AXIS')
-    for row in range(1,7):
-        cells[(row, 0)].configure(text=[axis.name for axis in Axis][row-1])
-    cells[(0,1)].configure(text='Driver Division', font='Helvetica 10')
-    cells[(0,2)].configure(text='Resolution', font='Helvetica 10')
-    cells[(0,3)].configure(text='Abs Position', font='Helvetica 10')
-    cells[(0,4)].configure(text='Speed Set', font='Helvetica 10')
+    for row in [axis for axis in Axis]:
+        cells[(row.value, 0)].configure(text=row.name.lower())
+    cells[(0, 1)].configure(text='Driver Division', font='Helvetica 10')
+    cells[(0, 2)].configure(text='Resolution', font='Helvetica 10')
+    cells[(0, 3)].configure(text='Abs Position', font='Helvetica 10')
+    cells[(0, 4)].configure(text='Speed Set', font='Helvetica 10')
     ## table data
-    def update_table(axis, all=False):
-        while int(Stage._verify_all_moving().strip().decode("utf-8")) != 0:
-            continue
-        cells[(axis, 3)].configure(background='white')
-        read_drvdiv = Stage._get_driver_division(axis)
-        cells[(axis, 1)].configure(text=read_drvdiv, font='Helvetica 10', background='white')
-
-        read_resolution = str(Stage._get_resolution(axis).strip().decode("utf-8"))
-        cells[(axis, 2)].configure(text=read_resolution, font='Helvetica 10', background='white')
-        i = 4
-        read_speed = str(Stage._get_speed(axis).strip().decode("utf-8"))
-        cells[(axis, i)].configure(text=read_speed, font='Helvetica 10', background='white')
-        root.after(10, lambda: cells[(axis, i)].configure(background='spring green'))
-        root.after(2000, lambda: cells[(axis, i)].configure(background='white'))
-        if all:
-            i = 3
-            read_position = str(Stage._get_position(axis).strip().decode("utf-8"))
-            cells[(axis, 3)].configure(text=read_position, font='Helvetica 10', background='white')
-            root.after(10, lambda: cells[(axis, i)].configure(background='spring green'))
-            root.after(2000, lambda: cells[(axis, i)].configure(background='white'))
+    def update_table(axes, attributes):
+        if type(axes) and type(attributes) is not list: 
+            axes = [axes]
+            attributes = [attributes]
+        print(int(Stage._verify_all_moving().strip().decode("utf-8")))
+        while int(Stage._verify_all_moving().strip().decode("utf-8")) != 0: sleep(0.3)
+        queries, outputs = Stage.query(axes, attributes)
+        for query, output in zip(queries, outputs):
+            if query[1] is Command.DRD:
+                selection = ['1:1', '1:2', '1:2.5', '1:4', 
+                     '1:5', '1:8', '1:10', '1:20'
+                     '1:25', '1:40', '1:50', '1:80'
+                     '1:100', '1:125', '1:200', '1:250']
+                cells[(query[0].value, 1)].configure(text=selection[int(output)], font='Helvetica 10', background='white')
+            elif query[1] is Command.RES:
+                cells[(query[0].value, 2)].configure(text=output, font='Helvetica 10', background='white')
+            elif query[1] is Command.POS:
+                cells[(query[0].value, 3)].configure(text=output, font='Helvetica 10', background='white')
+            elif query[1] is Command.SPD:
+                cells[(query[0].value, 4)].configure(text=output, font='Helvetica 10', background='white')
+            root.after(1, lambda: cells[(query[0].value, 0)].configure(background='spring green'))
+            root.after(500, lambda: cells[(query[0].value, 0)].configure(background='white'))
 
     update_button = Button(status_frame, text=u'Update', font='Helvetica 12')
     update_button.pack(side=LEFT, padx=10)
+    attributes = [Command.DRD, Command.RES, Command.POS, Command.SPD]
     def full_table_refresh(action):
         update_button.configure(relief=SUNKEN, text='WAIT', bg='red', fg='white')
         root.update()
-        for axis in Axis:
-            update_table(axis.value, all=True)
+        update_table([axis for axis in Axis], attributes)
         update_button.configure(relief=RAISED, text='Update', background='SystemButtonFace', fg='black')
     update_button.bind("<ButtonPress-1>", full_table_refresh)
 
     # copyright label
-    copyright = Button(root, text=u'© 2021 Mabuchi Research Co. LTD.', relief=SUNKEN, font='Helvetica 8')
+    copyright = Button(root, text=u'©2021 | Mabuchi Research Co. LTD.', relief=SUNKEN, font='Helvetica 8')
     copyright.pack(side=BOTTOM, fill=X)
-
-
+    
 
     root.mainloop()
